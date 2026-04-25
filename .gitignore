@@ -29,3 +29,6 @@ internal
 # nChar logs
 logs/
 
+# Claude Code
+.claude/
+
