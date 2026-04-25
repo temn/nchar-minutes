@@ -125,7 +125,8 @@ pub async fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_sidecar2::init())
         .plugin(tauri_plugin_permissions::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        // nChar: updater disabled for privacy — no calls to desktop2.hyprnote.com
+        // .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_deeplink2::init())
         .plugin(tauri_plugin_fs_sync::init())
@@ -178,7 +179,9 @@ pub async fn main() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--background"]),
         ))
-        .plugin(tauri_plugin_updater2::init());
+        // nChar: updater2 disabled for privacy
+        // .plugin(tauri_plugin_updater2::init());
+        ;
 
     if let Some(client) = sentry_client.as_ref() {
         builder = builder.plugin(tauri_plugin_sentry::init_with_no_injection(client));

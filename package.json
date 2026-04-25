@@ -1,7 +1,7 @@
 {
   "scripts": {
     "fmt:check": "echo 'TODO'",
-    "fmt": "dprint fmt",
+    "fmt": "DPRINT_CACHE_DIR=$PWD/.cache/dprint dprint fmt",
     "lint": "oxlint --type-aware || eslint",
     "plugin:hello-world:install": "pnpm --dir examples/plugins/hello-world install:dev"
   },
@@ -20,7 +20,7 @@
     "typescript-eslint": "^8.58.1"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,json,css,md}": "dprint fmt"
+    "*.{ts,tsx,js,jsx,json,css,md}": "DPRINT_CACHE_DIR=$PWD/.cache/dprint dprint fmt"
   },
   "pnpm": {
     "patchedDependencies": {

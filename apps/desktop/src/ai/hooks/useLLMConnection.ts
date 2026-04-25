@@ -23,6 +23,7 @@ import {
   getProviderSelectionBlockers,
   type ProviderEligibilityContext,
 } from "~/settings/ai/shared/eligibility";
+import { getMlxBaseUrl } from "~/settings/ai/shared/list-mlx";
 import * as settings from "~/store/tinybase/store/settings";
 
 type LanguageModelV3 = Parameters<typeof wrapLanguageModel>[0]["model"];
@@ -318,6 +319,16 @@ const createLanguageModel = (
         baseURL: conn.baseUrl,
         apiKey: conn.apiKey,
         headers: { "api-key": conn.apiKey },
+      });
+      return wrapWithThinkingMiddleware(provider.chatModel(conn.modelId));
+    }
+
+    case "mlx_local": {
+      const mlxBaseUrl = getMlxBaseUrl(conn.modelId);
+      const provider = createOpenAICompatible({
+        fetch: tauriFetch,
+        name: "mlx_local",
+        baseURL: mlxBaseUrl,
       });
       return wrapWithThinkingMiddleware(provider.chatModel(conn.modelId));
     }

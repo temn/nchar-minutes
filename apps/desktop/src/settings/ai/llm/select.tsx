@@ -32,6 +32,7 @@ import {
 import { listGoogleModels } from "~/settings/ai/shared/list-google";
 import { listLMStudioModels } from "~/settings/ai/shared/list-lmstudio";
 import { listMistralModels } from "~/settings/ai/shared/list-mistral";
+import { listMlxModels } from "~/settings/ai/shared/list-mlx";
 import { listOllamaModels } from "~/settings/ai/shared/list-ollama";
 import {
   listGenericModels,
@@ -335,6 +336,9 @@ function useConfiguredMapping(): Record<string, ProviderStatus> {
             break;
           case "lmstudio":
             listModelsFunc = () => listLMStudioModels(baseUrl, apiKey);
+            break;
+          case "mlx_local":
+            listModelsFunc = () => listMlxModels(baseUrl, apiKey);
             break;
           case "custom":
             listModelsFunc = () => listGenericModels(baseUrl, apiKey);

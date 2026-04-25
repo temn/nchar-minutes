@@ -11,6 +11,22 @@ common_derives! {
 
 common_derives! {
     #[derive(askama::Template)]
+    #[template(path = "nchar-minutes.system.md.jinja")]
+    pub struct NcharMinutesSystem {
+        pub language: Option<String>,
+    }
+}
+
+common_derives! {
+    #[derive(askama::Template)]
+    #[template(path = "nchar-action-items.system.md.jinja")]
+    pub struct NcharActionItemsSystem {
+        pub language: Option<String>,
+    }
+}
+
+common_derives! {
+    #[derive(askama::Template)]
     #[template(path = "enhance.user.md.jinja")]
     pub struct EnhanceUser {
         pub session: Session,

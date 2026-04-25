@@ -26,3 +26,6 @@ internal
 # TypeScript incremental build cache
 *.tsbuildinfo
 
+# nChar logs
+logs/
+

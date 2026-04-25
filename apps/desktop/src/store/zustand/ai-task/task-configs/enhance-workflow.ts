@@ -1,3 +1,5 @@
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import {
   generateText,
   type LanguageModel,
@@ -5,6 +7,7 @@ import {
   smoothStream,
   streamText,
 } from "ai";
+import { wrapLanguageModel, extractReasoningMiddleware } from "ai";
 import { z } from "zod";
 
 import {
@@ -16,6 +19,7 @@ import { templateSectionSchema } from "@hypr/store";
 import type { TaskArgsMapTransformed, TaskConfig } from ".";
 import { createEnhanceValidator } from "./enhance-validator";
 
+import { findAvailableMlxEndpoint } from "~/settings/ai/shared/mlx-fallback";
 import type { Store } from "~/store/tinybase/store/main";
 import { normalizeBulletPoints } from "~/store/zustand/ai-task/shared/transform_impl";
 import { withEarlyValidationRetry } from "~/store/zustand/ai-task/shared/validate";
@@ -56,22 +60,75 @@ async function* executeWorkflow(params: {
   const system = await getSystemPrompt(argsWithTemplate);
   const prompt = await getUserPrompt(argsWithTemplate, store);
 
-  yield* generateSummary({
-    model,
-    args: argsWithTemplate,
-    system,
-    prompt,
-    onProgress,
-    signal,
+  try {
+    yield* generateSummary({
+      model,
+      args: argsWithTemplate,
+      system,
+      prompt,
+      onProgress,
+      signal,
+    });
+  } catch (err) {
+    const fallback = await tryMlxFallback();
+    if (!fallback) {
+      throw err;
+    }
+    onProgress({ type: "fallback", modelId: fallback.modelId });
+    yield* generateSummary({
+      model: fallback.model,
+      args: argsWithTemplate,
+      system,
+      prompt,
+      onProgress,
+      signal,
+    });
+  }
+}
+
+async function tryMlxFallback(): Promise<{
+  model: LanguageModel;
+  modelId: string;
+} | null> {
+  const endpoint = await findAvailableMlxEndpoint();
+  if (!endpoint) {
+    return null;
+  }
+  const provider = createOpenAICompatible({
+    fetch: tauriFetch,
+    name: "mlx_local",
+    baseURL: endpoint.baseUrl,
   });
+  const raw = provider.chatModel(endpoint.modelId);
+  const model = wrapLanguageModel({
+    model: raw,
+    middleware: extractReasoningMiddleware({ tagName: "think" }),
+  });
+  return { model: model as LanguageModel, modelId: endpoint.modelId };
 }
 
 async function getSystemPrompt(args: TaskArgsMapTransformed["enhance"]) {
-  const result = await templateCommands.render({
-    enhanceSystem: {
-      language: args.language,
-    },
-  });
+  const format = args.outputFormat ?? "summary";
+
+  let templateArg: Parameters<typeof templateCommands.render>[0];
+  switch (format) {
+    case "minutes":
+      templateArg = {
+        ncharMinutesSystem: { language: args.language },
+      };
+      break;
+    case "action_items":
+      templateArg = {
+        ncharActionItemsSystem: { language: args.language },
+      };
+      break;
+    default:
+      templateArg = {
+        enhanceSystem: { language: args.language },
+      };
+  }
+
+  const result = await templateCommands.render(templateArg);
 
   if (result.status === "error") {
     throw new Error(result.error);

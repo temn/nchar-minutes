@@ -21,13 +21,20 @@ import type { TaskState, TaskStepInfo } from "~/store/zustand/ai-task/tasks";
 
 export type TaskType = "enhance" | "title";
 
+export type NcharOutputFormat = "summary" | "minutes" | "action_items";
+
 export interface TaskArgsMap {
-  enhance: { sessionId: string; enhancedNoteId: string; templateId?: string };
+  enhance: {
+    sessionId: string;
+    enhancedNoteId: string;
+    templateId?: string;
+    outputFormat?: NcharOutputFormat;
+  };
   title: { sessionId: string };
 }
 
 export interface TaskArgsMapTransformed {
-  enhance: EnhanceSystem & EnhanceUser;
+  enhance: EnhanceSystem & EnhanceUser & { outputFormat?: NcharOutputFormat };
   title: TitleSystem & TitleUser;
 }
 

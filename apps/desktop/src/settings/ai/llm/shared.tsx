@@ -145,6 +145,20 @@ const _PROVIDERS = [
     requirements: [{ kind: "requires_config", fields: ["api_key"] }],
   },
   {
+    id: "mlx_local",
+    displayName: "MLX Local",
+    badge: "Apple Silicon",
+    icon: <Icon icon="simple-icons:apple" width={16} />,
+    baseUrl: "http://127.0.0.1:8080/v1",
+    requirements: [],
+    links: {
+      setup: {
+        label: "Setup guide",
+        url: "https://github.com/temn/nchar-minutes/blob/nchar-main/FORK.md",
+      },
+    },
+  },
+  {
     id: "custom",
     displayName: "Custom",
     badge: null,

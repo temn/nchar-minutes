@@ -93,6 +93,10 @@ export const displayModelId = (model: string) => {
     return "Faster Whisper Large V3 Turbo";
   }
 
+  if (model === "mlx-whisper") {
+    return "MLX Whisper (Apple Silicon)";
+  }
+
   return model;
 };
 
@@ -234,6 +238,16 @@ const _PROVIDERS = [
     baseUrl: "https://api.aquavoice.com/api/v1",
     models: ["avalon-v1-en"],
     requirements: [{ kind: "requires_config", fields: ["api_key"] }],
+  },
+  {
+    disabled: false,
+    id: "mlx_whisper",
+    displayName: "MLX Whisper",
+    badge: "Local",
+    icon: <Icon icon="simple-icons:apple" className="size-4" />,
+    baseUrl: "http://127.0.0.1:8888/v1",
+    models: ["mlx-whisper"],
+    requirements: [],
   },
   {
     disabled: false,

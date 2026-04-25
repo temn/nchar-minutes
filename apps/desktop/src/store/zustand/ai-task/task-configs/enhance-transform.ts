@@ -40,7 +40,7 @@ async function transformArgs(
   store: MainStore,
   settingsStore: SettingsStore,
 ): Promise<TaskArgsMapTransformed["enhance"]> {
-  const { sessionId, templateId } = args;
+  const { sessionId, templateId, outputFormat } = args;
 
   const sessionContext = getSessionContext(sessionId, store);
   const templateRecord = templateId ? await getTemplateById(templateId) : null;
@@ -65,6 +65,7 @@ async function transformArgs(
     preMeetingMemo: sessionContext.preMeetingMemo,
     postMeetingMemo: sessionContext.postMeetingMemo,
     transcripts: formatTranscripts(segments, sessionContext.transcriptsMeta),
+    outputFormat,
   };
 }
 
