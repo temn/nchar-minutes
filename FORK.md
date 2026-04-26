@@ -58,13 +58,14 @@ Thank you to the [fastrepl](https://github.com/fastrepl) team for building Char 
 ```bash
 # 1. Install prerequisites
 xcode-select --install
-brew install node@22 rust pnpm
+brew install node@22 rust pnpm cmake
 
 # 2. Clone and build
 git clone https://github.com/temn/nchar-minutes.git
 cd nchar-minutes
 git checkout nchar-main
 pnpm install
+pnpm -F @hypr/ui build        # generates Tailwind CSS (required before first run)
 pnpm -F @hypr/desktop tauri:dev
 ```
 
@@ -99,7 +100,15 @@ These models are optimized for writing meeting minutes and summaries on Apple Si
 
 ### MLX-Whisper STT
 
-For fully local speech-to-text, run an OpenAI-compatible transcription server backed by MLX-Whisper. Configure it as the "MLX Whisper" STT provider in Settings, or use the "Custom" STT provider with your server's URL.
+For fully local real-time speech-to-text, nChar includes a WebSocket server that wraps mlx-whisper and speaks the Deepgram protocol. Start it before recording:
+
+```bash
+python3 sidecar/mlx-whisper-realtime.py --port 8888
+```
+
+Then select "MLX Whisper" as the STT provider in Settings > AI > Transcription. Transcription happens in real-time as you speak — no batch processing.
+
+The model loads on first connection and stays in memory for subsequent recordings. Kill the server (`Ctrl+C`) to free the ~3 GB of RAM.
 
 ### Cloud AI subscriptions (optional)
 
@@ -140,13 +149,25 @@ Models are downloaded to `~/.cache/huggingface/hub/` on first use. You can also 
 ### Installation of MLX-Whisper STT
 
 ```bash
-# Install mlx-whisper
-pip install mlx-whisper
+# Install dependencies
+pip install mlx-whisper websockets numpy
 
-# The whisper model downloads automatically on first use (~3 GB)
-# To use with nChar, run a server that exposes an OpenAI-compatible
-# /v1/audio/transcriptions endpoint and configure it in Settings > AI > STT
+# The whisper model (~3 GB) downloads automatically on first start.
 ```
+
+To use with nChar, start the real-time transcription server before recording:
+
+```bash
+# From the nchar-minutes repo root:
+python3 sidecar/mlx-whisper-realtime.py --port 8888
+
+# Or with a specific model:
+python3 sidecar/mlx-whisper-realtime.py --port 8888 --model mlx-community/whisper-large-v3-turbo
+```
+
+Then in nChar: Settings > AI > Transcription > select "MLX Whisper".
+
+The server accepts WebSocket connections on `ws://127.0.0.1:8888/v1/listen`, buffers 3-second audio chunks, and returns transcript segments in real-time. It uses ~3 GB RAM while running. Stop it with `Ctrl+C` when done.
 
 ### Installation of cloud AI
 

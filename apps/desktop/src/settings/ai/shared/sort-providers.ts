@@ -17,7 +17,14 @@ export function sortProviders<T extends Sortable>(
     if (a.id === "custom") return 1;
     if (b.id === "custom") return -1;
 
-    const localOnlyIds = ["ollama", "lmstudio", "mlx_local"];
+    const localOnlyIds = [
+      "ollama",
+      "lmstudio",
+      "mlx_local",
+      "claude_cli",
+      "codex_cli",
+      "gemini_cli",
+    ];
     const aIsLocalOnly = localOnlyIds.includes(a.id);
     const bIsLocalOnly = localOnlyIds.includes(b.id);
     if (aIsLocalOnly && !bIsLocalOnly) return 1;

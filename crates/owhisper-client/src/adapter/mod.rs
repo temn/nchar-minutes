@@ -408,10 +408,13 @@ impl AdapterKind {
         }
 
         if is_local_argmax(base_url) {
-            if let Some(model) = _model
-                && is_cactus_model(model)
-            {
-                return Self::Cactus;
+            if let Some(model) = _model {
+                if is_cactus_model(model) {
+                    return Self::Cactus;
+                }
+                if model.contains("mlx-whisper") || model.contains("mlx_whisper") {
+                    return Self::Deepgram;
+                }
             }
             return Self::Argmax;
         }

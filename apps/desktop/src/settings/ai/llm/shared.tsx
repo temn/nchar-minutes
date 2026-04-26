@@ -159,6 +159,48 @@ const _PROVIDERS = [
     },
   },
   {
+    id: "claude_cli",
+    displayName: "Claude CLI",
+    badge: "via tmux",
+    icon: <Anthropic size={16} />,
+    baseUrl: undefined,
+    requirements: [],
+    links: {
+      download: {
+        label: "Install Claude CLI",
+        url: "https://docs.anthropic.com/en/docs/claude-code",
+      },
+    },
+  },
+  {
+    id: "codex_cli",
+    displayName: "Codex CLI",
+    badge: "via tmux",
+    icon: <OpenAI size={16} />,
+    baseUrl: undefined,
+    requirements: [],
+    links: {
+      download: {
+        label: "Install Codex CLI",
+        url: "https://github.com/openai/codex",
+      },
+    },
+  },
+  {
+    id: "gemini_cli",
+    displayName: "Gemini CLI",
+    badge: "via tmux",
+    icon: <Icon icon="simple-icons:googlegemini" width={16} />,
+    baseUrl: undefined,
+    requirements: [],
+    links: {
+      download: {
+        label: "Install Gemini CLI",
+        url: "https://github.com/google-gemini/gemini-cli",
+      },
+    },
+  },
+  {
     id: "custom",
     displayName: "Custom",
     badge: null,

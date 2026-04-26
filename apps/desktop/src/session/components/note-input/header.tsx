@@ -45,6 +45,7 @@ import {
 } from "~/shared/hooks/useNativeContextMenu";
 import { useWebResources } from "~/shared/ui/resource-list";
 import * as main from "~/store/tinybase/store/main";
+import type { NcharOutputFormat } from "~/store/zustand/ai-task/task-configs";
 import { createTaskId } from "~/store/zustand/ai-task/task-configs";
 import { type TaskStepInfo } from "~/store/zustand/ai-task/tasks";
 import { type Tab, useTabs } from "~/store/zustand/tabs";
@@ -520,6 +521,23 @@ function CreateOtherFormatButton({
   );
   const openTemplatesTab = useOpenTemplatesTab();
 
+  const handleUseOutputFormat = useCallback(
+    (outputFormat: NcharOutputFormat) => {
+      setOpen(false);
+      setSearch("");
+      resultRefs.current = [];
+
+      const service = getEnhancerService();
+      if (!service) return;
+
+      const result = service.enhance(sessionId, { outputFormat });
+      if (result.type === "started" || result.type === "already_active") {
+        handleTabChange({ type: "enhanced", id: result.noteId });
+      }
+    },
+    [sessionId, handleTabChange],
+  );
+
   const handleUseTemplate = useCallback(
     (templateId: string) => {
       setOpen(false);
@@ -755,8 +773,29 @@ function CreateOtherFormatButton({
       }>;
     }>
   >(() => {
+    const ncharFormats = [
+      {
+        key: "nchar-minutes",
+        title: "Detailed Minutes",
+        description: "Speaker attribution, decisions, contextual action items",
+        onClick: () => handleUseOutputFormat("minutes"),
+      },
+      {
+        key: "nchar-action-items",
+        title: "Action Items",
+        description:
+          "Checkbox todos with owner, deadline, and discussion context",
+        onClick: () => handleUseOutputFormat("action_items"),
+      },
+    ];
+
     if (!hasSearch) {
       return [
+        {
+          key: "nchar",
+          title: "nChar Formats",
+          items: ncharFormats,
+        },
         {
           key: "favorite",
           title: "Favorites",
@@ -1162,6 +1201,7 @@ function useEnhanceLogic(sessionId: string, enhancedNoteId: string) {
           sessionId,
           enhancedNoteId,
           templateId: templateId ?? noteTemplateId,
+          outputFormat: undefined,
         },
       });
     },

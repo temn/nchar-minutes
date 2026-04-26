@@ -16,9 +16,12 @@ type EnhanceResult =
   | { type: "already_active"; noteId: string }
   | { type: "no_model" };
 
+import type { NcharOutputFormat } from "~/store/zustand/ai-task/task-configs";
+
 type EnhanceOpts = {
   isAuto?: boolean;
   templateId?: string;
+  outputFormat?: NcharOutputFormat;
 };
 
 type EnhancerEvent =
@@ -209,7 +212,12 @@ export class EnhancerService {
     void aiTaskStore.getState().generate(enhanceTaskId, {
       model,
       taskType: "enhance",
-      args: { sessionId, enhancedNoteId, templateId },
+      args: {
+        sessionId,
+        enhancedNoteId,
+        templateId,
+        outputFormat: opts?.outputFormat,
+      },
     });
 
     return { type: "started", noteId: enhancedNoteId };

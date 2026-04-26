@@ -11,7 +11,7 @@ import { useAuth } from "~/auth";
 import { useBillingAccess } from "~/auth/billing";
 import { env } from "~/env";
 import { providerRowId } from "~/settings/ai/shared";
-import { type ProviderId } from "~/settings/ai/stt/shared";
+import { type ProviderId, PROVIDERS } from "~/settings/ai/stt/shared";
 import * as settings from "~/store/tinybase/store/settings";
 
 export const useSTTConnection = () => {
@@ -108,15 +108,22 @@ export const useSTTConnection = () => {
       };
     }
 
-    if (!baseUrl || !apiKey) {
+    const providerDef = PROVIDERS.find((p) => p.id === current_stt_provider);
+    const resolvedBaseUrl = baseUrl || providerDef?.baseUrl;
+    const requiresApiKey =
+      providerDef?.requirements.some(
+        (r) => r.kind === "requires_config" && r.fields.includes("api_key"),
+      ) ?? true;
+
+    if (!resolvedBaseUrl || (requiresApiKey && !apiKey)) {
       return null;
     }
 
     return {
       provider: current_stt_provider,
       model: current_stt_model,
-      baseUrl,
-      apiKey,
+      baseUrl: resolvedBaseUrl,
+      apiKey: apiKey ?? "",
     };
   }, [
     current_stt_provider,
