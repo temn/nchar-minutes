@@ -447,6 +447,13 @@ impl AdapterKind {
         match self {
             Self::AquaVoice => LanguageSupport::NotSupported,
             Self::Deepgram => {
+                if model.map_or(false, |m| {
+                    m.contains("mlx-whisper") || m.contains("mlx_whisper")
+                }) {
+                    return LanguageSupport::Supported {
+                        quality: LanguageQuality::NoData,
+                    };
+                }
                 let model = model.and_then(|m| m.parse::<deepgram::DeepgramModel>().ok());
                 DeepgramAdapter::language_support_live(languages, model)
             }

@@ -340,6 +340,33 @@ function useConfiguredMapping(): Record<string, ProviderStatus> {
           case "mlx_local":
             listModelsFunc = () => listMlxModels(baseUrl, apiKey);
             break;
+          case "claude_cli":
+            listModelsFunc = async () => ({
+              models: ["claude"],
+              ignored: [],
+              metadata: {
+                claude: { input_modalities: ["text"] as InputModality[] },
+              },
+            });
+            break;
+          case "codex_cli":
+            listModelsFunc = async () => ({
+              models: ["codex"],
+              ignored: [],
+              metadata: {
+                codex: { input_modalities: ["text"] as InputModality[] },
+              },
+            });
+            break;
+          case "gemini_cli":
+            listModelsFunc = async () => ({
+              models: ["gemini"],
+              ignored: [],
+              metadata: {
+                gemini: { input_modalities: ["text"] as InputModality[] },
+              },
+            });
+            break;
           case "custom":
             listModelsFunc = () => listGenericModels(baseUrl, apiKey);
             break;
