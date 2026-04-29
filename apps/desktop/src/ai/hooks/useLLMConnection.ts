@@ -215,8 +215,18 @@ const resolveLLMConnection = (params: {
     };
   }
 
+  const isCliProvider =
+    providerId === "claude_cli" ||
+    providerId === "codex_cli" ||
+    providerId === "gemini_cli";
+
   return {
-    conn: { providerId, modelId, baseUrl, apiKey },
+    conn: {
+      providerId,
+      modelId,
+      baseUrl: isCliProvider ? "cli://local" : baseUrl,
+      apiKey,
+    },
     status: { status: "success", providerId, isHosted: false },
   };
 };
@@ -256,6 +266,19 @@ const createLanguageModel = (
   hostedFetch?: typeof fetch,
 ): LanguageModelV3 => {
   switch (conn.providerId) {
+    case "claude_cli":
+    case "codex_cli":
+    case "gemini_cli": {
+      // CLI providers use tmux export, not API calls.
+      // Return a placeholder that reports a clear error if accidentally called.
+      const provider = createOpenAICompatible({
+        fetch: tauriFetch,
+        name: conn.providerId,
+        baseURL: "http://127.0.0.1:0",
+      });
+      return provider.chatModel(conn.modelId);
+    }
+
     case "hyprnote": {
       const provider = createOpenRouter({
         fetch: hostedFetch ?? (task ? createTracedFetch(task) : tracedFetch),

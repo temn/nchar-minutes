@@ -4,6 +4,10 @@ import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { Spinner } from "@hypr/ui/components/ui/spinner";
 
 import { useConfigValues } from "~/shared/config";
+import {
+  tryLaunchMlxWhisperServer,
+  type MlxWhisperStatus,
+} from "~/stt/mlx-whisper-health";
 import { useSTTConnection } from "~/stt/useSTTConnection";
 
 export type HealthStatus = {
@@ -45,6 +49,16 @@ function useDeepgramHealth(enabled: boolean, apiKey?: string) {
   });
 }
 
+function useMlxWhisperHealth(enabled: boolean) {
+  return useQuery<MlxWhisperStatus>({
+    enabled,
+    queryKey: ["stt-health-check", "mlx_whisper"],
+    staleTime: 5000,
+    retry: 1,
+    queryFn: () => tryLaunchMlxWhisperServer(),
+  });
+}
+
 export function useConnectionHealth(): HealthStatus {
   const { conn, local } = useSTTConnection();
   const { current_stt_provider, current_stt_model } = useConfigValues([
@@ -56,8 +70,10 @@ export function useConnectionHealth(): HealthStatus {
     (current_stt_provider === "hyprnote" && current_stt_model === "cloud") ||
     current_stt_provider !== "hyprnote";
   const isDeepgram = current_stt_provider === "deepgram";
+  const isMlxWhisper = current_stt_provider === "mlx_whisper";
 
   const deepgramHealth = useDeepgramHealth(isDeepgram && !!conn, conn?.apiKey);
+  const mlxWhisperHealth = useMlxWhisperHealth(isMlxWhisper);
 
   if (!isCloud) {
     const serverStatus = local.data?.status ?? "unavailable";
@@ -84,6 +100,25 @@ export function useConnectionHealth(): HealthStatus {
 
   if (!conn) {
     return { status: "error", message: "Provider not configured." };
+  }
+
+  if (isMlxWhisper) {
+    if (mlxWhisperHealth.isPending) {
+      return { status: "pending", message: "Checking MLX Whisper server…" };
+    }
+    if (mlxWhisperHealth.data?.status === "starting") {
+      return { status: "pending", message: "Starting MLX Whisper server…" };
+    }
+    if (mlxWhisperHealth.data?.status === "running") {
+      return { status: "success" };
+    }
+    if (mlxWhisperHealth.data?.status === "unavailable") {
+      return {
+        status: "error",
+        message: mlxWhisperHealth.data.message,
+      };
+    }
+    return { status: "error", message: "MLX Whisper server not available." };
   }
 
   if (isDeepgram) {

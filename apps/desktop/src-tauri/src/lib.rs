@@ -207,7 +207,7 @@ pub async fn main() {
         .on_window_event(tauri_plugin_windows::on_window_event)
         .setup(move |app| {
             let app_handle = app.handle().clone();
-            let app_clone = app_handle.clone();
+            let _app_clone = app_handle.clone();
 
             specta_builder.mount_events(&app_handle);
 

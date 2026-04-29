@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { Spinner } from "@hypr/ui/components/ui/spinner";
 
 import { useLanguageModel } from "~/ai/hooks";
+import { useConfigValues } from "~/shared/config";
 
 export type LlmHealthStatus = {
   status: "pending" | "error" | "success" | null;
@@ -21,11 +22,18 @@ export function HealthStatusIndicator() {
   return null;
 }
 
+const CLI_PROVIDERS = new Set(["claude_cli", "codex_cli", "gemini_cli"]);
+
 export function useConnectionHealth(): LlmHealthStatus {
   const model = useLanguageModel();
+  const { current_llm_provider } = useConfigValues([
+    "current_llm_provider",
+  ] as const);
+
+  const isCliProvider = CLI_PROVIDERS.has(current_llm_provider ?? "");
 
   const text = useQuery({
-    enabled: !!model,
+    enabled: !!model && !isCliProvider,
     queryKey: ["llm-health-check", model],
     staleTime: 0,
     retry: 5,
@@ -49,6 +57,10 @@ export function useConnectionHealth(): LlmHealthStatus {
 
   if (!model) {
     return { status: null };
+  }
+
+  if (isCliProvider) {
+    return { status: "success" };
   }
 
   if (text.status === "error") {
