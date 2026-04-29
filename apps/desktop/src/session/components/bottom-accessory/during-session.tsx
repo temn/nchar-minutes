@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { cn } from "@hypr/utils";
 
@@ -136,6 +136,12 @@ function LiveTranscriptContent({
   labelContext: ReturnType<typeof defaultRenderLabelContext> | undefined;
   speakerLabelManager: SpeakerLabelManager;
 }) {
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [segments, scrollRef]);
+
   if (!isExpanded) {
     return <CollapsedFooterMessage message={previewText ?? "Listening..."} />;
   }
@@ -143,7 +149,7 @@ function LiveTranscriptContent({
   return (
     <div
       ref={scrollRef}
-      className="flex max-h-[180px] flex-col gap-1 overflow-y-auto px-3 pt-2 pb-2.5"
+      className="flex max-h-[80vh] flex-col gap-1 overflow-y-auto px-3 pt-2 pb-2.5"
     >
       {segments.length === 0 ? (
         <span className="py-4 text-center text-xs text-neutral-400">
@@ -240,7 +246,7 @@ function getSegmentIdentity(segment: Segment, fallbackIndex: number): string {
     return `${firstWord.id}:${lastWord.id}`;
   }
 
-  return `${segment.key.channel}:${segment.key.speaker_index ?? "unknown"}:${firstWord?.start_ms ?? fallbackIndex}:${lastWord?.end_ms ?? fallbackIndex}`;
+  return `seg:${fallbackIndex}:${segment.key.channel}:${segment.key.speaker_index ?? "u"}:${firstWord?.start_ms ?? fallbackIndex}:${lastWord?.end_ms ?? fallbackIndex}`;
 }
 
 function getSegmentText(segment: Segment): string {

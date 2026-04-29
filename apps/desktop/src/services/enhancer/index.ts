@@ -14,7 +14,8 @@ import { getTemplateById } from "~/templates/queries";
 type EnhanceResult =
   | { type: "started"; noteId: string }
   | { type: "already_active"; noteId: string }
-  | { type: "no_model" };
+  | { type: "no_model" }
+  | { type: "cli_provider"; providerId: string };
 
 import type { NcharOutputFormat } from "~/store/zustand/ai-task/task-configs";
 
@@ -27,7 +28,12 @@ type EnhanceOpts = {
 type EnhancerEvent =
   | { type: "auto-enhance-skipped"; sessionId: string; reason: string }
   | { type: "auto-enhance-started"; sessionId: string; noteId: string }
-  | { type: "auto-enhance-no-model"; sessionId: string };
+  | { type: "auto-enhance-no-model"; sessionId: string }
+  | {
+      type: "auto-enhance-cli-provider";
+      sessionId: string;
+      providerId: string;
+    };
 
 type EnhancerDeps = {
   mainStore: MainStore;
@@ -156,6 +162,16 @@ export class EnhancerService {
       return;
     }
 
+    if (result.type === "cli_provider") {
+      this.activeAutoEnhance.delete(sessionId);
+      this.emit({
+        type: "auto-enhance-cli-provider",
+        sessionId,
+        providerId: result.providerId,
+      });
+      return;
+    }
+
     this.activeAutoEnhance.delete(sessionId);
     this.emit({
       type: "auto-enhance-started",
@@ -186,6 +202,12 @@ export class EnhancerService {
     const { aiTaskStore, getModel, getLLMConn, getSelectedTemplateId } =
       this.deps;
 
+    const llmConn = getLLMConn();
+    const providerId = llmConn?.providerId ?? "";
+    if (providerId.endsWith("_cli")) {
+      return { type: "cli_provider", providerId };
+    }
+
     const model = getModel();
     if (!model) return { type: "no_model" };
 
@@ -200,7 +222,6 @@ export class EnhancerService {
       return { type: "already_active", noteId: enhancedNoteId };
     }
 
-    const llmConn = getLLMConn();
     void analyticsCommands.event({
       event: "note_enhanced",
       is_auto: opts?.isAuto ?? false,

@@ -162,77 +162,74 @@ grep -rn "PATTERN" apps/desktop/src/session/       # Session UI
 6. **Dual-channel audio** — nChar sends `channels=2` (mic+speaker interleaved PCM). The whisper server must mix to mono.
 7. **Adapter routing for localhost** — All localhost URLs go to `Argmax` adapter by default. New local providers must be intercepted in `AdapterKind::from_url_and_languages()` before the Argmax fallback.
 
+## Key Learnings from Session 2 (2026-04-29)
+
+### How Whisper Actually Works
+
+1. **Encoder-decoder transformer.** Encoder converts a 30s log-mel spectrogram (80 mel bins, 16kHz) into embeddings. Decoder generates text tokens autoregressively. Audio shorter than 30s is zero-padded.
+2. **`initial_prompt` is decoder-only context.** Max ~224 tokens (~800 chars). Prepended as "already-completed" tokens before the decoder starts generating from the audio. It does NOT overlap with the audio — it's pure context that ended before the audio window begins. It biases vocabulary, style, and topic.
+3. **`word_timestamps=True`** returns `{word, start, end, probability}` per word, relative to chunk start. This enables overlap deduplication.
+4. **Silence hallucination**: When given silent audio, the encoder produces near-zero features. The decoder generates from its language model prior — "Thank you.", "...", Korean/Chinese characters, repetitive patterns. RMS-based silence detection (threshold ~0.003) prevents this.
+5. **30s is optimal**: Whisper was trained on 30s windows. Shorter chunks degrade accuracy. Longer chunks are zero-padded to 30s anyway.
+
+### ROVER Merge Algorithm
+
+**Reference:** Fiscus, J.G. (1997). "A post-processing system to yield reduced word error rates: Recognizer Output Voting Error Reduction (ROVER)." IEEE Workshop on Automatic Speech Recognition and Understanding, pp. 347-354.
+
+Used to merge two overlapping transcriptions of the same audio:
+1. Align word sequences using Needleman-Wunsch (edit distance with timestamp-aware scoring)
+2. At each aligned position, pick the word with highest `confidence / n_words_in_hypothesis`
+3. Gap positions keep the word from whichever hypothesis produced it
+
+### Current Whisper Server Architecture
+
+30s Whisper windows sliding by 10s. Every output is exactly 10s of confirmed words:
+- Chunk 0 (audio 0-30s): send words 0-10s (1 Whisper pass)
+- Chunk 1 (audio 10-40s): ROVER merge [10-30s], send words 10-20s (2 passes)
+- Chunk 2 (audio 20-50s): ROVER merge [20-40s], send words 20-30s (3 passes, steady state)
+
+**Critical bug fixed:** `step_count` must be tracked separately from `chunk_count`. Buffer advances (`del buf[:step_bytes]`) happen for every step including silent skips, but `chunk_count` only increments for actual transcriptions. Using `chunk_count` for `session_offset` causes timestamp drift when silence occurs before speech.
+
+### CLI Provider Model Handling
+
+CLI providers (`claude_cli`, `codex_cli`, `gemini_cli`) cannot make API calls. Three layers of protection:
+1. **Enhancer service** (`enhancer/index.ts`): `enhance()` checks `providerId.endsWith("_cli")` → returns `cli_provider` result, blocks both auto and manual enhance
+2. **Model fetch** (`useLLMConnection.ts`): CLI model uses a custom fetch that throws immediately with a clear error message instead of trying `http://127.0.0.1:0`
+3. **Connection resolver** (`useLLMConnection.ts`): sets `baseUrl: "cli://local"` for CLI providers
+
+**Gotcha:** The enhancer service blocks enhance, but the chat/AI assistant feature and other model consumers also call the model. The fetch-level rejection (layer 2) catches all code paths.
+
+### Live Transcript UI
+
+- Chronological order (latest at bottom), auto-scroll down
+- Per-speaker segments (not per-sentence — sentence splitting caused duplicate React keys from words sharing `start_ms`)
+- `max-h-[80vh]` expanded view
+- Key must include fallback index for uniqueness: `seg:${index}:${channel}:${speaker}:${startMs}:${endMs}`
+
 ## Plan for Next Session
 
-### Priority 1: Fix Whisper First-Chunk Loss
+### Priority 1: Transcript as Tab
 
-**Problem:** Chunks #0 and #1 are skipped — first ~8 seconds of speech lost.
-
-**Root cause:** In `install_dictation_tools.sh`, the first iteration enters the `while len(buf) >= chunk_bytes` loop but the `prev_tail` logic causes chunk #0 to be consumed without transcription, and the offset starts at 4.0 instead of 0.0.
-
-**Fix:** In `install_dictation_tools.sh`, ensure the first chunk (when `chunk_count == 0` and `prev_tail` is empty) uses `window = bytes(buf[:chunk_bytes])` with `start_sec = 0.0`, and `del buf[:chunk_bytes]` (not `step_bytes`). Add detailed logging of every chunk: buffer size, window size, offset, skip reason if any.
-
-**Files:** `~/projects/dotfiles_tn/macos/install_dictation_tools.sh` (the `handle()` function in the heredoc)
-
-### Priority 2: CLI Provider Enhance Integration
-
-**Problem:** When Claude CLI / Codex CLI is selected as LLM provider, auto-enhance after recording tries `http://127.0.0.1:0/chat/completions` instead of using tmux export.
-
-**Fix options:**
-A. Disable auto-enhance when CLI provider is selected (simple)
-B. Route enhance workflow to tmux export when CLI provider detected (complex but correct)
-
-For option A: In `apps/desktop/src/services/enhancer/index.ts`, check `getLLMConn().providerId` — if it ends with `_cli`, skip auto-enhance and show a button "Export to CLI" instead.
-
-For option B: In `apps/desktop/src/store/zustand/ai-task/task-configs/enhance-workflow.ts`, detect CLI provider and call `exportToCliTool()` from `apps/desktop/src/ai/cli-export.ts` instead of `streamText()`.
+**Problem:** Live transcript shows in a bottom panel. User wants clicking "Transcript" to open it as a full tab alongside Summary/Memos.
 
 **Files:**
-- `apps/desktop/src/services/enhancer/index.ts`
-- `apps/desktop/src/store/zustand/ai-task/task-configs/enhance-workflow.ts`
-- `apps/desktop/src/ai/cli-export.ts`
+- `apps/desktop/src/session/components/note-input/transcript/` — existing transcript viewer (already tab-capable)
+- `apps/desktop/src/session/components/bottom-accessory/during-session.tsx` — current live panel
 
-### Priority 3: Transcript UI Redesign
+### Priority 2: CLI Provider Export to CLI Button
 
-**Problem:** Live transcript shows in a small panel at the bottom. User wants:
-- One sentence at a time display
-- Speaker label + real clock time as header per sentence
-- Most recent sentence on top (reverse chronological)
-- Auto-scroll to keep latest at top
-- Clicking "Transcript" expands to full window (like Summary tab)
-- Default: only latest sentence visible
+**Problem:** When CLI provider is selected, Summary tab shows error. Should show "Export to CLI" button that pipes transcript to tmux session.
 
-**Files to modify:**
-- `apps/desktop/src/session/components/bottom-accessory/during-session.tsx` — `LiveTranscriptContent` component
-- `apps/desktop/src/session/components/note-input/transcript/` — transcript display
-- `apps/desktop/src/store/zustand/listener/transcript.ts` — transcript segment state
+**Files:**
+- `apps/desktop/src/session/components/note-input/header.tsx` — enhance trigger
+- `apps/desktop/src/ai/cli-export.ts` — existing `exportToCliTool()` function
+- Need UI to show export button when CLI provider detected
 
-**Approach:**
-1. Parse incoming `StreamResponse` segments into sentences (split on `.?!`)
-2. Add clock timestamp (`new Date().toLocaleTimeString()`) to each sentence
-3. Render in reverse order (newest first)
-4. Add expand/collapse toggle on the transcript tab
-5. When expanded, render full-height with scroll
+### Priority 3: Whisper Overlap Dedup Verification
 
-### Priority 4: Enhanced Whisper Server Logging
+**Problem:** ROVER merge works but needs real-world testing with longer recordings. The overlap zone might need tuning:
+- Does the 20s overlap provide enough redundancy?
+- Are word timestamps accurate enough for alignment?
+- Does the Needleman-Wunsch scoring need adjustment?
 
-**Problem:** Server log doesn't show enough detail to debug chunk merging and what gets sent to nChar.
-
-**Fix:** In `install_dictation_tools.sh`, add to the server:
-- Log the raw JSON being sent via WebSocket (truncated)
-- Log buffer sizes at each step
-- Log when chunks are skipped and why
-- Log the full session transcript at session end
-
-**Files:** `~/projects/dotfiles_tn/macos/install_dictation_tools.sh`
-
-### Priority 5: Silence Handling Improvement
-
-**Problem:** Pauses between sentences cause chunks to be classified as silent and skipped, losing the words at sentence boundaries.
-
-**Fix options:**
-- Increase chunk size to 8-10 seconds (less likely to hit silence-only window)
-- Use VAD (Voice Activity Detection) instead of simple RMS threshold — Silero VAD is lightweight
-- Remove silence detection entirely and rely on hallucination text filtering instead
-- Reduce overlap to 0 and increase chunk to 10s for fewer, more complete windows
-
-**Recommended:** Remove silence detection, keep hallucination text filtering, increase chunk to 8s. This is simplest and avoids losing real speech.
+**Test:** Record 5+ minutes of natural speech, examine server log for ROVER merge quality at each step boundary.

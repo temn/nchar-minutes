@@ -270,11 +270,16 @@ const createLanguageModel = (
     case "codex_cli":
     case "gemini_cli": {
       // CLI providers use tmux export, not API calls.
-      // Return a placeholder that reports a clear error if accidentally called.
+      // Return a model that rejects immediately with a clear error.
+      const cliFetch: typeof fetch = async () => {
+        throw new Error(
+          `${conn.providerId} is a CLI provider — use "Export to CLI" instead of API calls.`,
+        );
+      };
       const provider = createOpenAICompatible({
-        fetch: tauriFetch,
+        fetch: cliFetch,
         name: conn.providerId,
-        baseURL: "http://127.0.0.1:0",
+        baseURL: "http://localhost:0",
       });
       return provider.chatModel(conn.modelId);
     }
